@@ -560,7 +560,12 @@ predict.spAbund <- function(object, X.0, coords.0,
 
       n.post <- object$n.post * object$n.chains
       X <- object$X
-      p.abund <- dim(X)[3]
+      # TODO: this needs to be cleaned up substantially. 
+      if (object$dist %in% c('Gaussian')) {
+        p.abund <- dim(X)[2]
+      } else {
+        p.abund <- dim(X)[3]
+      }
       if (is(object, 'spAbund')) {
         svc.cols <- 1
         p.svc <- 1
@@ -595,7 +600,12 @@ predict.spAbund <- function(object, X.0, coords.0,
         beta.star.samples <- object$beta.star.samples
         re.level.names <- object$re.level.names
         # Get columns in design matrix with random effects
-        x.re.names <- dimnames(object$X.re)[[3]]
+        # TODO: this needs to be cleaned up substantially. 
+        if (object$dist %in% c('Gaussian')) {
+          x.re.names <- dimnames(object$X.re)[[2]]
+        } else {
+          x.re.names <- dimnames(object$X.re)[[3]]
+        }
         x.0.names <- colnames(X.0)
         # Get the number of times each factor is used.
         re.long.indx <- sapply(re.cols, length)
