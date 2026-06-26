@@ -31,7 +31,8 @@ svcAbund(formula, data, inits, priors, tuning,
     multiple seasons), \code{y} can be specified as a matrix or data frame
     with first dimension equal to the number of
     sites (\eqn{J}{J}) and second dimension equal to the maximum number of
-    replicates at a given site. \code{covs} is either a data frame or list
+    replicates at a given site. Note that multiple replicate observations are not 
+    currently allowed when \code{family = "zi-Gaussian"}. \code{covs} is either a data frame or list
     containing the variables used in the model. When only fitting a model with site-level
     data, \code{covs} can be specified as a data frame, with each row corresponding to
     site and each column corresponding to a variable. When multiple abundance values

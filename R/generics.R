@@ -4432,7 +4432,7 @@ summary.svcAbund <- function(object, quantiles = c(0.025, 0.5, 0.975),
 
 # NOTE: predict.svcAbund is really for spAbund or svcAbund family types 
 #       that do not allow replication. predict.spAbund is for spAbund or svcAbund
-#       family types that do allow for replication.
+#       family types that do allow for replication. Yeah I know, this is terrible. 
 predict.svcAbund <- function(object, X.0, coords.0, n.omp.threads = 1,
                              verbose = TRUE, n.report = 100,
                              ignore.RE = FALSE, z.0.samples,

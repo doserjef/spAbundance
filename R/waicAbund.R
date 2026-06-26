@@ -113,17 +113,6 @@ waicAbund <- function(object, N.max, by.species = FALSE, ...) {
     }
   }
   
-  # Single-species dynamic GLMs -------------------------------------------
-  if (class(object) %in% c('dynAbund', 'spDynAbund')) {
-    if (object$dist == 'zi-Gaussian') {
-      message("Calculated WAIC is only for stage 2 of the hurdle model\n")
-    }
-    elpd <- sum(apply(object$like.samples, c(2, 3), function(a) log(mean(a))), na.rm = TRUE)
-    pD <- sum(apply(object$like.samples, c(2, 3), function(a) var(log(a))), na.rm = TRUE)
-    out <- c(elpd, pD, -2 * (elpd - pD))
-    names(out) <- c("elpd", "pD", "WAIC")
-  }
-
   # Single-species N-mixture models ---------------------------------------
   if (class(object) %in% c('NMix', 'spNMix')) {
     N.samples <- object$N.samples

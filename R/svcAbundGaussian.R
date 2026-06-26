@@ -36,17 +36,20 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
 
   # Some initial checks -------------------------------------------------
   if (missing(data)) {
-    stop("error: data must be specified")
+    stop("data must be specified")
   }
   if (!is.list(data)) {
-    stop("error: data must be a list")
+    stop("data must be a list")
   }
   names(data) <- tolower(names(data))
   if (missing(formula)) {
-    stop("error: formula must be specified")
+    stop("formula must be specified")
   }
   if (!'y' %in% names(data)) {
-    stop("error: detection-nondetection data y must be specified in data")
+    stop("detection-nondetection data y must be specified in data")
+  }
+  if(!is.null(dim(y)) & family == "zi-Gaussian") {
+    stop("multiple replicates are not currently allowed for zi-Gaussian models. Please convert y to a vector with length equal to the number of sites.") 
   }
   y <- as.matrix(data$y)
   if (!'covs' %in% names(data)) {
@@ -56,26 +59,24 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
       }
       data$covs <- list(int = array(1, dim = dim(y)))
     } else {
-      stop("error: covs must be specified in data for an abundance model with covariates")
+      stop("covs must be specified in data for an abundance model with covariates")
     }
   }
   if (!is.list(data$covs)) {
     if (is.matrix(data$covs)) {
       data$covs <- data.frame(data$covs)
     } else {
-      stop("error: covs must be a list, data frame, or matrix")
+      stop("covs must be a list, data frame, or matrix")
     }
   }
   if (!'coords' %in% names(data)) {
-    stop("error: coords must be specified in data for a spatial model.")
+    stop("coords must be specified in data for a spatial model.")
   }
   if (!is.matrix(data$coords) & !is.data.frame(data$coords)) {
-    stop("error: coords must be a matrix or data frame")
+    stop("coords must be a matrix or data frame")
   }
   coords <- as.matrix(data$coords)
 
-  # TODO: note the replication is currently only fully supported for Gaussian and not ZI Gaussian
-  #       as of March 19, 2025.
   if (!(family) %in% c('Gaussian', 'zi-Gaussian')) {
     stop("svcAbund currently only supports family = 'Gaussian' or 'zi-Gaussian'")
   }
@@ -86,7 +87,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   }
   if (two.stage) {
     if (!'z' %in% names(data)) {
-      stop("error: z must be specified in data for a two stage model")
+      stop("z must be specified in data for a two stage model")
     }
     z <- as.matrix(data$z)
   } else {
@@ -109,8 +110,10 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   J.est <- sum(z.site.indx)
   J.zero <- sum(!z.site.indx)
 
-  # TODO: need to confirm the following two chunks work properly for 
-  #       family = 'ZI-Gaussian' 
+  # Convert covariate data to a list if you have replicate surveys at a site. 
+  if (is.data.frame(data$covs)) {
+    data$covs <- as.list(data$covs)
+  }
   
   # Set observations in y and covs to NA if not passing the hurdle
   y <- ifelse(z.indx, y, NA)
@@ -172,12 +175,12 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # y -------------------------------
   y.na.test <- apply(y, 1, function(a) sum(!is.na(a)))
   if (sum(y.na.test == 0) > 0) {
-    stop("error: some sites in y have all missing detection histories. Remove these sites from all objects in the 'data' argument, then use 'predict' to obtain predictions at these locations if desired.")
+    stop("some sites in y have all missing detection histories. Remove these sites from all objects in the 'data' argument, then use 'predict' to obtain predictions at these locations if desired.")
   }
   # covs ------------------------------
   for (i in 1:ncol(data$covs)) {
     if (sum(is.na(data$covs[, i])) > sum(is.na(y))) {
-      stop("error: some elements in covs have missing values where there is an observed data value in y. Please either replace the NA values in covs with non-missing values (e.g., mean imputation) or set the corresponding values in y to NA where the covariate is missing.")
+      stop("some elements in covs have missing values where there is an observed data value in y. Please either replace the NA values in covs with non-missing values (e.g., mean imputation) or set the corresponding values in y to NA where the covariate is missing.")
     }
   }
   # Misalignment between y and covs
@@ -223,7 +226,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
     X.random <- as.matrix(tmp[[5]])
     x.random.names <- colnames(X.random)
   } else {
-    stop("error: formula is misspecified")
+    stop("formula is misspecified")
   }
   # Get RE level names
   re.level.names <- lapply(data$covs[, x.re.names, drop = FALSE],
@@ -324,7 +327,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # beta -----------------------
   if ("beta.normal" %in% names(priors)) {
     if (!is.list(priors$beta.normal) | length(priors$beta.normal) != 2) {
-      stop("error: beta.normal must be a list of length 2")
+      stop("beta.normal must be a list of length 2")
     }
     mu.beta <- priors$beta.normal[[1]]
     sigma.beta <- priors$beta.normal[[2]]
@@ -365,7 +368,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # Get distance matrix which is used if priors are not specified
   if ("phi.unif" %in% names(priors)) {
     if (!is.list(priors$phi.unif) | length(priors$phi.unif) != 2) {
-      stop("error: phi.unif must be a list of length 2")
+      stop("phi.unif must be a list of length 2")
     }
     phi.a <- priors$phi.unif[[1]]
     phi.b <- priors$phi.unif[[2]]
@@ -397,7 +400,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # tau.sq.t ----------------------
   if ("tau.sq.ig" %in% names(priors)) {
     if (!is.vector(priors$tau.sq.ig) | !is.atomic(priors$tau.sq.ig) | length(priors$tau.sq.ig) != 2) {
-      stop("error: tau.sq.ig must be a vector of length 2 with elements corresponding to tau.sq's shape and scale parameters")
+      stop("tau.sq.ig must be a vector of length 2 with elements corresponding to tau.sq's shape and scale parameters")
     }
     tau.sq.a <- priors$tau.sq.ig[1]
     tau.sq.b <- priors$tau.sq.ig[2]
@@ -411,7 +414,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # sigma.sq -----------------------------
   if ("sigma.sq.ig" %in% names(priors)) {
     if (!is.list(priors$sigma.sq.ig) | length(priors$sigma.sq.ig) != 2) {
-      stop("error: sigma.sq.ig must be a list of length 2")
+      stop("sigma.sq.ig must be a list of length 2")
     }
     sigma.sq.a <- priors$sigma.sq.ig[[1]]
     sigma.sq.b <- priors$sigma.sq.ig[[2]]
@@ -440,12 +443,12 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # nu -----------------------------
   if (cov.model == "matern") {
     if (!"nu.unif" %in% names(priors)) {
-      stop("error: nu.unif must be specified in priors value list")
+      stop("nu.unif must be specified in priors value list")
     }
     nu.a <- priors$nu.unif[[1]]
     nu.b <- priors$nu.unif[[2]]
     if (!is.list(priors$nu.unif) | length(priors$nu.unif) != 2) {
-      stop("error: nu.unif must be a list of length 2")
+      stop("nu.unif must be a list of length 2")
     }
     if (length(nu.a) != p.svc & length(nu.a) != 1) {
       stop(paste("error: nu.unif[[1]] must be a vector of length ",
@@ -470,7 +473,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   if (p.re > 0) {
     if ("sigma.sq.mu.ig" %in% names(priors)) {
       if (!is.list(priors$sigma.sq.mu.ig) | length(priors$sigma.sq.mu.ig) != 2) {
-        stop("error: sigma.sq.mu.ig must be a list of length 2")
+        stop("sigma.sq.mu.ig must be a list of length 2")
       }
       sigma.sq.mu.a <- priors$sigma.sq.mu.ig[[1]]
       sigma.sq.mu.b <- priors$sigma.sq.mu.ig[[2]]
@@ -557,7 +560,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   if ("tau.sq" %in% names(inits)) {
     tau.sq.inits <- inits[["tau.sq"]]
     if (length(tau.sq.inits) != 1) {
-      stop("error: initial values for tau.sq must be of length 1")
+      stop("initial values for tau.sq must be of length 1")
     }
   } else {
     tau.sq.inits <- runif(1, 0.5, 10)
@@ -666,7 +669,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   # Order must match util.cpp spCor.
   cov.model.names <- c("exponential", "spherical", "matern", "gaussian")
   if(! cov.model %in% cov.model.names){
-    stop("error: specified cov.model '",cov.model,"' is not a valid option; choose from ",
+    stop("specified cov.model '",cov.model,"' is not a valid option; choose from ",
          paste(cov.model.names, collapse=", ", sep="") ,".")}
   # Obo for cov model lookup on c side
   cov.model.indx <- which(cov.model == cov.model.names) - 1
@@ -689,7 +692,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
     names(tuning) <- tolower(names(tuning))
     # phi ---------------------------
     if(!"phi" %in% names(tuning)) {
-      stop("error: phi must be specified in tuning value list")
+      stop("phi must be specified in tuning value list")
     }
     phi.tuning <- tuning$phi
     if (length(phi.tuning) == 1) {
@@ -701,7 +704,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
     if (cov.model == 'matern') {
       # nu --------------------------
       if(!"nu" %in% names(tuning)) {
-        stop("error: nu must be specified in tuning value list")
+        stop("nu must be specified in tuning value list")
       }
       nu.tuning <- tuning$nu
       if (length(nu.tuning) == 1) {
@@ -732,7 +735,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
     search.type.names <- c("brute", "cb")
 
     if(!search.type %in% search.type.names){
-      stop("error: specified search.type '",search.type,
+      stop("specified search.type '",search.type,
 	   "' is not a valid option; choose from ",
 	   paste(search.type.names, collapse=", ", sep="") ,".")
     }
@@ -938,39 +941,39 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
         tmp[, curr.indx[1], curr.indx[2]] <- out$like.samples[, j]
       }
       out$like.samples <- tmp[, order(ord), , drop = FALSE]
+      out$X <- array(NA, dim = c(J, ncol(y.mat), p))
+      out$X.re <- array(NA, dim = c(J, ncol(y.mat), p.re))
+      out$X.w <- array(NA, dim = c(J, ncol(y.mat), p.svc))
+      for (j in 1:n.obs) {
+        curr.indx <- y.non.miss.indx[j, ]
+        out$X[curr.indx[1], curr.indx[2], ] <- X[j, ]
+        out$X.w[curr.indx[1], curr.indx[2], ] <- X.w[j, ]
+        if (p.re > 0) {
+          out$X.re[curr.indx[1], curr.indx[2], ] <- X.re[j, ]
+        }
+      }
+      dimnames(out$X)[[3]] <- x.names
+      dimnames(out$X.w)[[3]] <- x.names[svc.cols]
+      dimnames(out$X.re)[[3]] <- colnames(X.re)
+      out$X <- out$X[order(ord), , , drop = FALSE]
+      out$X.w <- out$X.w[order(ord), , , drop = FALSE]
+      out$X.re <- out$X.re[order(ord), , , drop = FALSE]
     } else {
-      # TODO: this needs to be updated to deal with multiple reps. Also make
-      #       sure that mu is included in here since you took it out of 
-      #       elsewhere. 
       y.rep.samples <- mcmc(do.call(rbind, lapply(out.tmp, function(a) t(a$y.rep.samples))))
       y.rep.samples <- mcmc(y.rep.samples[, order(ord), drop = FALSE])
+      mu.samples <- mcmc(do.call(rbind, lapply(out.tmp, function(a) t(a$mu.samples))))
+      mu.samples <- mcmc(mu.samples[, order(ord), drop = FALSE])
       like.samples <- mcmc(do.call(rbind, lapply(out.tmp, function(a) t(a$like.samples))))
       like.samples <- mcmc(like.samples[, order(ord), drop = FALSE])
       y.rep.zero.samples <- mcmc(do.call(rbind, lapply(out.tmp, function(a) t(a$y.rep.zero.samples))))
       out$y.rep.samples <- matrix(NA, n.post.samples * n.chains, J.est + J.zero)
       out$y.rep.samples[, z.indx] <- y.rep.samples
-      out$y.rep.samples[, -z.indx] <- y.rep.zero.samples
+      out$y.rep.samples[, !z.indx] <- y.rep.zero.samples
       out$y.rep.samples <- mcmc(out$y.rep.samples)
-      out$like.samples <- mcmc(do.call(rbind, lapply(out.tmp, function(a) t(a$like.samples))))
-      out$like.samples <- mcmc(out$like.samples[, order(ord), drop = FALSE])
+      out$X <- X[order(ord), , drop = FALSE]
+      out$X.re <- X.re[order(ord), , drop = FALSE]
+      out$X.w <- X.w[order(ord), , drop = FALSE]
     }
-    out$X <- array(NA, dim = c(J, ncol(y.mat), p))
-    out$X.re <- array(NA, dim = c(J, ncol(y.mat), p.re))
-    out$X.w <- array(NA, dim = c(J, ncol(y.mat), p.svc))
-    for (j in 1:n.obs) {
-      curr.indx <- y.non.miss.indx[j, ]
-      out$X[curr.indx[1], curr.indx[2], ] <- X[j, ]
-      out$X.w[curr.indx[1], curr.indx[2], ] <- X.w[j, ]
-      if (p.re > 0) {
-        out$X.re[curr.indx[1], curr.indx[2], ] <- X.re[j, ]
-      }
-    }
-    dimnames(out$X)[[3]] <- x.names
-    dimnames(out$X.w)[[3]] <- x.names[svc.cols]
-    dimnames(out$X.re)[[3]] <- colnames(X.re)
-    out$X <- out$X[order(ord), , , drop = FALSE]
-    out$X.w <- out$X.w[order(ord), , , drop = FALSE]
-    out$X.re <- out$X.re[order(ord), , , drop = FALSE]
     # Account for case when intercept only spatial model.
     if (p.svc == 1) {
       tmp <- do.call(rbind, lapply(out.tmp, function(a) t(a$w.samples)))
