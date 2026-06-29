@@ -48,7 +48,7 @@ svcAbundGaussian <- function(formula, data, inits, priors, tuning,
   if (!'y' %in% names(data)) {
     stop("detection-nondetection data y must be specified in data")
   }
-  if(!is.null(dim(y)) & family == "zi-Gaussian") {
+  if(!is.null(dim(data$y)) & family == "zi-Gaussian") {
     stop("multiple replicates are not currently allowed for zi-Gaussian models. Please convert y to a vector with length equal to the number of sites.") 
   }
   y <- as.matrix(data$y)
